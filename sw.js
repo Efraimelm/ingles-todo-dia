@@ -1,6 +1,6 @@
 // Funciona sem internet: guarda o app no aparelho e busca a versão nova quando houver conexão.
-const CACHE = 'itd-v1';
-const SHELL = ['./', 'index.html', 'css/style.css', 'js/textos.js', 'js/app.js', 'manifest.webmanifest',
+const CACHE = 'itd-v2';
+const SHELL = ['./', 'index.html', 'css/style.css', 'js/textos.js', 'js/app.js', 'js/sync.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -17,8 +17,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // fontes: guardadas na primeira vez
-  if (url.hostname.endsWith('fonts.googleapis.com') || url.hostname.endsWith('fonts.gstatic.com')) {
+  // fontes e a biblioteca do Supabase: guardadas na primeira vez
+  if (url.hostname.endsWith('fonts.googleapis.com') || url.hostname.endsWith('fonts.gstatic.com') || url.hostname === 'cdn.jsdelivr.net') {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
       caches.open(CACHE).then(c => c.put(req, res.clone()));
       return res;

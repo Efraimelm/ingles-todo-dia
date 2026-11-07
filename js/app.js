@@ -176,10 +176,10 @@ function session(d, short) {
 
 /* ---------- estado e salvamento ---------- */
 const LS = 'itd-state-v2';
-let state = { done: [], steps: {}, short: false };
+let state = { done: [], steps: {}, short: false, updatedAt: 0 };
 try {
   const s = JSON.parse(localStorage.getItem(LS) || 'null');
-  if (s && Array.isArray(s.done)) state = { done: s.done, steps: s.steps || {}, short: !!s.short };
+  if (s && Array.isArray(s.done)) state = { done: s.done, steps: s.steps || {}, short: !!s.short, updatedAt: s.updatedAt || 0 };
   const old = JSON.parse(localStorage.getItem('itd-done-v1') || '[]');
   if (Array.isArray(old)) state.done = [...new Set([...state.done, ...old])];
 } catch (e) {}
@@ -189,7 +189,9 @@ let viewing = null;
 let justFinished = null;
 
 function persist() {
+  state.updatedAt = Date.now();
   try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {}
+  if (window.onLocalChange) window.onLocalChange();
 }
 
 /* levar o progresso para outro aparelho: um código curto com os dias feitos */
@@ -355,7 +357,8 @@ function renderHoje() {
         <li><b>Todo 7º dia é revisão</b> e todo dia 30 do mês é teste. Guarde as gravações para ouvir a sua evolução.</li>
         <li><b>Dia corrido?</b> Use a versão curta. Pular um dia não estraga nada; pular uma semana estraga.</li>
       </ul></div></details>
-    <details class="how"><summary>Levar o progresso para outro aparelho</summary><div class="inner">
+    ${window.accountPanel ? window.accountPanel() : ''}
+    <details class="how"><summary>Sem conta: levar o progresso por código</summary><div class="inner">
       <p>O progresso fica salvo neste aparelho. Para continuar no celular ou no computador, copie o código aqui e cole no outro aparelho.</p>
       <div class="actions"><input id="code-out" class="code" readonly value="${exportCode()}" aria-label="Seu código de progresso"><button class="btn" id="code-copy">Copiar código</button></div>
       <div class="actions"><input id="code-in" class="code" placeholder="Cole aqui o código do outro aparelho" aria-label="Código do outro aparelho"><button class="btn" id="code-load">Trazer progresso</button></div>
@@ -363,6 +366,7 @@ function renderHoje() {
     </div></details>`;
   bindHoje(el, d, steps);
   bindCode(el);
+  if (window.bindAccount) window.bindAccount(el);
 }
 function stepHTML(s, k, on) {
   return `<div class="step ${on ? 'is-done' : ''}">
