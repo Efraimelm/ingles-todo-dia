@@ -12,7 +12,7 @@ const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY, {
 let userId = null, userEmail = '', syncStatus = 'local', syncTimer = null, pushing = false, pushAgain = false;
 
 const STATUS_TEXT = {
-  local: 'Salvo neste aparelho', syncing: 'Sincronizando…', synced: 'Sincronizado',
+  local: 'Salvo neste aparelho', login: 'Entrar para sincronizar', syncing: 'Sincronizando…', synced: 'Sincronizado',
   offline: 'Sem internet · salvo no aparelho', error: 'Erro ao sincronizar', setup: 'Sync ainda não ativado',
 };
 function setStatus(s) {
@@ -72,7 +72,7 @@ function setUser(session) {
   userEmail = session ? session.user.email || '' : '';
   if (id === userId) return;
   userId = id;
-  if (userId) pull(); else setStatus('local');
+  if (userId) pull(); else setStatus(sb ? 'login' : 'local');
   renderAll();
 }
 
@@ -84,6 +84,21 @@ if (sb) {
     if (document.visibilityState === 'visible') pull();
     else if (userId) { clearTimeout(syncTimer); push(); }
   });
+}
+
+/* ---------- aviso no topo da tela Hoje enquanto não entrou ---------- */
+window.accountBanner = () => (!sb || userId) ? '' : `<div class="sync-banner">
+  <div><b>Seu progresso está só neste aparelho.</b><p class="muted small">Entre com a conta do English Journey para ver o mesmo progresso no celular e no computador.</p></div>
+  <button class="btn primary" id="acc-open">Entrar e sincronizar</button></div>`;
+
+function openAccount() {
+  show('hoje');
+  const acc = document.getElementById('account');
+  if (!acc) return;
+  acc.open = true;
+  acc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const email = document.getElementById('acc-email');
+  if (email) setTimeout(() => email.focus({ preventScroll: true }), 400);
 }
 
 /* ---------- painel da conta (fica na tela Hoje) ---------- */
@@ -105,6 +120,8 @@ window.accountPanel = () => {
 };
 
 window.bindAccount = el => {
+  const open = el.querySelector('#acc-open');
+  if (open) open.onclick = openAccount;
   const sync = el.querySelector('#acc-sync');
   if (sync) sync.onclick = () => pull();
   const out = el.querySelector('#acc-out');
@@ -129,10 +146,7 @@ window.bindAccount = el => {
   };
 };
 
+if (sb) setStatus('login');
 renderAll();
 
-document.getElementById('sync').onclick = () => {
-  show('hoje');
-  const acc = document.getElementById('account');
-  if (acc) { acc.open = true; acc.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-};
+document.getElementById('sync').onclick = openAccount;

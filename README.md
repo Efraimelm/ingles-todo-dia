@@ -42,4 +42,4 @@ Sem conta, ainda dá para levar o progresso por código: **Hoje → Sem conta: l
 
 ## Atualizar
 
-Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque `itd-v2` em `sw.js` para `itd-v3` (e assim por diante) para os aparelhos baixarem a versão nova.
+Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque `itd-v3` em `sw.js` para `itd-v4` (e assim por diante) para os aparelhos baixarem a versão nova.

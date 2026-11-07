@@ -39,6 +39,10 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; }
 img { max-width: 100%; }
+.sync[data-s="login"] { background: var(--accent); color: var(--accent-ink); padding: 5px 12px; border-radius: 999px; font-weight: 600; font-size: 12.5px; }
+.sync[data-s="login"]::before { display: none; }
+.sync-banner { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border-radius: var(--r-md); padding: 14px 16px; }
+.sync-banner > div { min-width: 0; flex: 1 1 220px; }
 .acc-form { display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
 .acc-form input.code { flex: none; width: 100%; font-family: var(--f-ui); }
 input.code { font: 500 14px var(--f-mono); flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 8px 14px; }

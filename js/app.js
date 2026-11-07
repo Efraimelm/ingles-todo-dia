@@ -338,6 +338,7 @@ function renderHoje() {
         <div class="jlabels">${PHASES.map(p => `<span class="${p.n === i.phase.n ? 'on' : ''}">${p.n}. ${p.name}</span>`).join('')}</div>
       </div>
     </div>
+    ${window.accountBanner ? window.accountBanner() : ''}
     ${unl.length ? `<div class="unlock"><span class="k">${ICON_KEY}</span><div class="txt"><b>Novo atalho na trilha:</b> ${unl.map(k => esc(RES[k].n)).join(', ')}. <span class="muted small">${esc(RES[unl[0]].p)}</span></div>${linkBtn({ label: 'Abrir', url: RES[unl[0]].u })}</div>` : ''}
     <div class="session-head">
       <div><h2>Sua sessão de hoje</h2><p class="muted small">${steps.reduce((a, s) => a + s.min, 0)} minutos · marque cada passo ao terminar</p></div>
