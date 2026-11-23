@@ -61,7 +61,7 @@ const THEMES = [
 
 const RES = {
   ej:      { n: 'English Journey', u: APP_URL, g: 'app', at: 1, p: 'O seu app. Use como teste rápido de revisão num intervalo do dia.' },
-  voa:     { n: 'VOA Learning English', u: 'https://learningenglish.voanews.com', g: 'ouvir', at: 1, p: 'Notícias e aulas faladas devagar, com o texto na tela.' },
+  ytbeg:   { n: 'YouTube para iniciantes', u: 'https://www.youtube.com/results?search_query=English+listening+practice+for+beginners+with+subtitles', g: 'ouvir', at: 1, p: 'Vídeos curtos de escuta para iniciantes, com legenda. O passo do dia já abre a busca no tema do texto.' },
   cambridge: { n: 'Cambridge Dictionary', u: 'https://dictionary.cambridge.org/pt/dicionario/ingles-portugues/', g: 'vocab', at: 1, p: 'Dicionário inglês–português com áudio americano e britânico.' },
   languagetool: { n: 'LanguageTool', u: 'https://languagetool.org', g: 'falar', at: 2, p: 'Corrige o que você escreve e explica o erro.' },
   youglish: { n: 'YouGlish', u: 'https://youglish.com', g: 'vocab', at: 8, p: 'Digite uma palavra e ouça nativos falando ela em vídeos reais.' },
@@ -105,7 +105,8 @@ function session(d, short) {
   const i = info(d);
   if (i.phase.n === 1) {
     const t = i.text;
-    const listen = i.month === 1 ? { k: 'voa', desc: 'Ouça um episódio do VOA Learning English com o texto na tela. Não precisa entender tudo.' }
+    const listen = i.month === 1 ? { k: 'ytbeg', title: 'Vídeo no YouTube: ' + t.title, url: yt(t.title + ' English listening practice for beginners'), label: 'Ver vídeos sobre "' + t.title + '"',
+                                     desc: 'Escolha um vídeo curto (até 10 min) sobre o tema de hoje e ative a legenda em inglês. Assista 1× sem pausar, depois de novo pausando e repetindo as frases que entender.' }
                  : i.month === 2 ? { k: 'bbc', desc: 'Ouça um episódio do 6 Minute English. Primeiro sem ler, depois com a transcrição.' }
                  : { k: 'easy', desc: 'Assista um vídeo do Easy English com legenda em inglês. Pause e repita as frases que você entender.' };
     const speak = t.review || i.dw === 7 || i.tail || d % 2 === 1;
@@ -115,7 +116,7 @@ function session(d, short) {
       { id: 'pausa', min: 10, kind: 'Pausa', title: 'Teste rápido no English Journey', desc: 'Faça a revisão do dia num intervalo: almoço, fila, ônibus.', links: [L('ej', 'Abrir o English Journey')] },
     ];
     if (!short) {
-      steps.push({ id: 'escuta', min: 15, kind: 'Escuta', title: RES[listen.k].n, desc: listen.desc, links: [L(listen.k)] });
+      steps.push({ id: 'escuta', min: 15, kind: 'Escuta', title: listen.title || RES[listen.k].n, desc: listen.desc, links: [listen.url ? { label: listen.label, url: listen.url } : L(listen.k)] });
       steps.push(speak
         ? { id: 'saida', min: 15, kind: 'Falar', title: 'Agora você, em voz alta', desc: 'Grave no celular respondendo:', tasks: t.tasks, links: [L('youglish', 'Ouvir uma palavra no YouGlish')].filter(() => d >= 8) }
         : { id: 'saida', min: 15, kind: 'Escrever', title: 'Escreva 5 a 8 frases', desc: 'Responda por escrito e corrija no LanguageTool. Depois leia em voz alta.', tasks: t.tasks, links: [L('languagetool', 'Corrigir no LanguageTool')] });
