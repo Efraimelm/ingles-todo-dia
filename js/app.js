@@ -127,7 +127,7 @@ function session(d, short) {
     if (!short) {
       steps.push({ id: 'escuta', min: 15, kind: 'Escuta', title: listen.title || RES[listen.k].n, desc: listen.desc, links: [listen.url ? { label: listen.label, url: listen.url } : L(listen.k)] });
       steps.push(speak
-        ? { id: 'saida', min: 15, kind: 'Falar', title: 'Agora você, em voz alta', desc: 'Grave no celular respondendo:', tasks: t.tasks, links: [L('youglish', 'Ouvir uma palavra no YouGlish')].filter(() => d >= 8) }
+        ? { id: 'saida', min: 15, kind: 'Falar', title: 'Agora você, em voz alta', desc: 'Grave aqui respondendo:', tasks: t.tasks, links: [L('youglish', 'Ouvir uma palavra no YouGlish')].filter(() => d >= 8) }
         : { id: 'saida', min: 15, kind: 'Escrever', title: 'Escreva 5 a 8 frases', desc: 'Responda por escrito e corrija no LanguageTool. Depois leia em voz alta.', tasks: t.tasks, links: [L('languagetool', 'Corrigir no LanguageTool')] });
     }
     return steps;
@@ -261,6 +261,28 @@ function speak(text, rate) {
   synth.speak(u);
   return true;
 }
+/* fala e chama "done" no fim (usado no shadowing guiado) */
+function speakThen(text, rate, done) {
+  if (!synth) return false;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US'; u.rate = rate; if (voice) u.voice = voice;
+  let called = false;
+  const fin = () => { if (!called) { called = true; done(); } };
+  u.onend = fin; u.onerror = fin;
+  synth.speak(u);
+  return true;
+}
+/* frases do texto, uma a uma (para tocar e repetir) */
+function sentencesOf(t) {
+  const out = [];
+  t.en.forEach((p, k) => {
+    const m = p.match(/^([A-Z][a-z]+):\s(.*)$/);
+    const body = m ? m[2] : p;
+    (body.match(/[^.!?]+(?:[.!?]+["”’']?)?\s*/g) || [body]).forEach(x => { if (x.trim()) out.push({ k, s: x.trim() }); });
+  });
+  return out;
+}
 const plain = t => t.en.map(p => p.replace(/^[A-Z][a-z]+:\s/, '')).join(' ');
 function markText(html, chunks) {
   const ranges = [], low = html.toLowerCase();
@@ -283,33 +305,179 @@ function markText(html, chunks) {
 let showPT = false;
 function readerHTML(t) {
   const i = info(t.d);
+  const ss = sentencesOf(t);
   const paras = t.en.map((p, k) => {
-    let sp = '', body = p;
     const m = p.match(/^([A-Z][a-z]+):\s(.*)$/);
-    if (m) { sp = `<span class="speaker">${m[1]}</span>`; body = m[2]; }
-    return `<div class="para"><div>${sp}${markText(esc(body), t.chunks)}</div>${showPT ? `<div class="pt">${esc(t.tr[k])}</div>` : ''}</div>`;
+    const sp = m ? `<span class="speaker">${m[1]}</span>` : '';
+    const body = ss.map((x, j) => x.k === k ? `<span class="sent" data-s="${j}" role="button" tabindex="0" title="Toque para ouvir esta frase">${markText(esc(x.s), t.chunks)}</span>` : '').join(' ');
+    return `<div class="para"><div>${sp}${body}</div>${showPT ? `<div class="pt">${esc(t.tr[k])}</div>` : ''}</div>`;
   }).join('');
   return `<div class="reader-head"><div class="eyebrow">Dia ${t.d} · ${esc(i.weekName)} · ${t.lvl}${t.review ? ' · Revisão' : ''}</div><h2>${esc(t.title)}</h2><div class="muted">${esc(t.pt)}</div></div>
     <div class="controls">
       <button class="btn primary" data-r="play">${ICON_PLAY} Ouvir</button>
       <button class="btn" data-r="slow">${ICON_PLAY} Devagar</button>
+      <button class="btn" data-r="shadow">${ICON_PLAY} Shadowing guiado</button>
       <button class="btn" data-r="stop">Parar</button>
       <button class="btn" data-r="pt" aria-pressed="${showPT}">Tradução</button>
     </div>
+    <p class="shadow-status" data-r="shstat" aria-live="polite">Toque em qualquer frase para ouvir só ela. No shadowing guiado, o app lê uma frase devagar e espera você repetir em voz alta.</p>
     <p class="voice-note" data-r="nv" hidden>Este navegador não tem voz em inglês. Copie o texto no Google Tradutor e use o botão de ouvir de lá.</p>
     <div class="text">${paras}</div>
     <div><div class="label">Expressões do dia · toque para ouvir</div>
       <ul class="chunks">${t.chunks.map(([en, pt], k) => `<li><button class="chunk" data-chunk="${k}">${ICON_PLAY}<span><span class="en">${esc(en)}</span><span class="ptx">${esc(pt)}</span></span></button></li>`).join('')}</ul></div>
-    <div class="focus"><b>Repare:</b> ${esc(t.focus)}</div>`;
+    <div class="focus"><b>Repare:</b> ${esc(t.focus)}</div>
+    <div><div class="label">Agora reconte gravando · sem olhar o texto</div>${recorderHTML(t.d)}</div>`;
 }
+/* ---------- shadowing guiado: frase devagar → pausa para você repetir → próxima ---------- */
+let shadowRun = 0;
+function stopShadow(el) {
+  shadowRun++;
+  if (synth) synth.cancel();
+  if (el) el.querySelectorAll('.sent.on').forEach(x => x.classList.remove('on'));
+}
+function startShadow(el, t) {
+  if (!synth) return false;
+  stopShadow(el);
+  const run = shadowRun, ss = sentencesOf(t), status = el.querySelector('[data-r="shstat"]');
+  let i = 0;
+  const step = () => {
+    if (run !== shadowRun) return;
+    el.querySelectorAll('.sent.on').forEach(x => x.classList.remove('on'));
+    if (i >= ss.length) { status.textContent = 'Fim do texto. Faça de novo um pouco mais rápido, ou grave você recontando logo abaixo.'; return; }
+    const sp = el.querySelector(`.sent[data-s="${i}"]`);
+    if (sp) { sp.classList.add('on'); sp.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    status.textContent = `Frase ${i + 1} de ${ss.length}: ouça e repita em voz alta, imitando o ritmo.`;
+    speakThen(ss[i].s, 0.75, () => {
+      if (run !== shadowRun) return;
+      status.textContent = `Frase ${i + 1} de ${ss.length}: sua vez. Repita agora.`;
+      const wait = Math.max(1800, ss[i].s.split(/\s+/).length * 700);
+      setTimeout(() => { i++; step(); }, wait);
+    });
+  };
+  step();
+  return true;
+}
+
 function mountReader(el, t, rerender) {
   el.innerHTML = readerHTML(t);
   const nv = () => { el.querySelector('[data-r="nv"]').hidden = false; };
   el.querySelector('[data-r="play"]').onclick = () => speak(plain(t), 0.95) || nv();
   el.querySelector('[data-r="slow"]').onclick = () => speak(plain(t), 0.72) || nv();
-  el.querySelector('[data-r="stop"]').onclick = () => synth && synth.cancel();
-  el.querySelector('[data-r="pt"]').onclick = () => { showPT = !showPT; mountReader(el, t, rerender); };
+  el.querySelector('[data-r="stop"]').onclick = () => stopShadow(el);
+  el.querySelector('[data-r="pt"]').onclick = () => { stopShadow(el); showPT = !showPT; mountReader(el, t, rerender); };
+  el.querySelector('[data-r="shadow"]').onclick = () => startShadow(el, t) || nv();
+  el.querySelectorAll('.sent').forEach(sp => {
+    const play = () => { stopShadow(el); speak(sentencesOf(t)[+sp.dataset.s].s, 0.85) || nv(); };
+    sp.onclick = play;
+    sp.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(); } };
+  });
+  bindRecorder(el);
   el.querySelectorAll('.chunk').forEach(b => b.onclick = () => speak(t.chunks[+b.dataset.chunk][0], 0.85) || nv());
+}
+
+/* ---------- gravador: grave, ouça e compare (fica só neste aparelho, no IndexedDB) ---------- */
+let recDbP = null;
+function recDb() {
+  if (!recDbP) recDbP = new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('sem IndexedDB'));
+    const r = indexedDB.open('itd-rec', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('recs', { keyPath: 'id', autoIncrement: true });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return recDbP;
+}
+async function recStore(mode, fn) {
+  const db = await recDb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('recs', mode);
+    const req = fn(tx.objectStore('recs'));
+    tx.oncomplete = () => res(req && req.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+const recAll = () => recStore('readonly', st => st.getAll()).then(l => l || []).catch(() => []);
+const recAdd = (d, blob, secs) => recStore('readwrite', st => st.add({ d, at: Date.now(), secs, blob }));
+const recDel = id => recStore('readwrite', st => st.delete(id));
+const canRecord = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+const fmtSecs = n => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+const fmtDate = ts => new Date(ts).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+
+function recorderHTML(d) {
+  if (!canRecord()) return `<p class="muted small">Este navegador não grava áudio. Use o gravador do celular.</p>`;
+  return `<div class="rec" data-rec="${d}">
+    <div class="rec-row"><button class="btn rec-btn" data-rec-btn><span class="dot"></span> Gravar</button>
+      <span class="muted small" data-rec-msg>Grave, ouça e compare com o áudio do texto. Fica salvo só neste aparelho.</span></div>
+    <ul class="rec-list" data-rec-list></ul></div>`;
+}
+function recItemHTML(r, label) {
+  return `<li><div class="rec-meta"><b>${label ? esc(label) + ' · ' : ''}Dia ${r.d}</b><span class="muted small">${fmtDate(r.at)} · ${fmtSecs(r.secs || 0)}</span></div>
+    <audio controls preload="none" data-blob="${r.id}"></audio><button class="btn ghost small-btn" data-rec-del="${r.id}">Apagar</button></li>`;
+}
+const recUrls = new Map();
+async function fillRecList(ul, list, labelOf) {
+  ul.innerHTML = list.map(r => recItemHTML(r, labelOf ? labelOf(r) : '')).join('');
+  ul.querySelectorAll('audio[data-blob]').forEach(a => {
+    const r = list.find(x => x.id === +a.dataset.blob);
+    if (!recUrls.has(r.id)) recUrls.set(r.id, URL.createObjectURL(r.blob));
+    a.src = recUrls.get(r.id);
+  });
+  ul.querySelectorAll('[data-rec-del]').forEach(b => {
+    let armed = false;
+    b.onclick = async () => {
+      if (!armed) { armed = true; b.textContent = 'Apagar mesmo?'; setTimeout(() => { armed = false; b.textContent = 'Apagar'; }, 3000); return; }
+      await recDel(+b.dataset.recDel);
+      renderRecPanels();
+    };
+  });
+}
+function renderRecPanels() {
+  document.querySelectorAll('.rec').forEach(box => {
+    const d = +box.dataset.rec;
+    recAll().then(all => fillRecList(box.querySelector('[data-rec-list]'), all.filter(r => r.d === d).sort((a, b) => b.at - a.at)));
+  });
+  const lib = document.getElementById('rec-library');
+  if (lib) recAll().then(all => {
+    const sorted = all.sort((a, b) => a.at - b.at);
+    lib.querySelector('[data-rec-count]').textContent = sorted.length;
+    const ul = lib.querySelector('[data-rec-list]');
+    if (!sorted.length) { ul.innerHTML = '<li class="muted small">Nenhuma gravação ainda. Elas aparecem aqui quando você grava num texto ou num passo de fala.</li>'; return; }
+    const first = sorted[0], last = sorted[sorted.length - 1];
+    fillRecList(ul, sorted.slice().reverse(), r => r === first ? 'A primeira' : r === last ? 'A mais recente' : '');
+  });
+}
+let recActive = null;
+function bindRecorder(scope) {
+  scope.querySelectorAll('.rec').forEach(box => {
+    const btn = box.querySelector('[data-rec-btn]'), msg = box.querySelector('[data-rec-msg]');
+    const d = +box.dataset.rec;
+    btn.onclick = async () => {
+      if (recActive && recActive.box === box) { recActive.mr.stop(); return; }
+      if (recActive) recActive.mr.stop();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream), chunks = [], t0 = Date.now();
+        mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+        const tick = setInterval(() => { btn.innerHTML = `<span class="dot on"></span> Parar · ${fmtSecs(Math.round((Date.now() - t0) / 1000))}`; }, 500);
+        mr.onstop = async () => {
+          clearInterval(tick); stream.getTracks().forEach(tr => tr.stop()); recActive = null;
+          btn.innerHTML = '<span class="dot"></span> Gravar';
+          const secs = Math.round((Date.now() - t0) / 1000);
+          if (secs < 1 || !chunks.length) return;
+          try { await recAdd(d, new Blob(chunks, { type: mr.mimeType || 'audio/webm' }), secs); msg.textContent = 'Gravação salva. Ouça e compare com o áudio do texto.'; }
+          catch (e) { msg.textContent = 'Não consegui salvar a gravação neste navegador.'; }
+          renderRecPanels();
+        };
+        synth && synth.cancel();
+        mr.start(); recActive = { mr, box };
+        btn.innerHTML = '<span class="dot on"></span> Parar · 0:00';
+        msg.textContent = 'Gravando. Fale sem olhar o texto.';
+      } catch (e) {
+        msg.textContent = 'Não consegui usar o microfone. Permita o acesso ao microfone nas configurações do navegador.';
+      }
+    };
+  });
+  renderRecPanels();
 }
 
 /* ---------- HOJE ---------- */
@@ -356,7 +524,7 @@ function renderHoje() {
       <div><h2>Sua sessão de hoje</h2><p class="muted small">${steps.reduce((a, s) => a + s.min, 0)} minutos · marque cada passo ao terminar</p></div>
       <div class="mode" role="group" aria-label="Duração"><button data-mode="full" aria-pressed="${!state.short}">Completa</button><button data-mode="short" aria-pressed="${state.short}">Dia corrido</button></div>
     </div>
-    <div class="steps">${steps.map((s, k) => stepHTML(s, k, !!checks[s.id])).join('')}</div>
+    <div class="steps">${steps.map((s, k) => stepHTML(s, k, !!checks[s.id], d)).join('')}</div>
     <div class="finish">
       <div><b>${isDone(d) ? 'Dia concluído' : allChecked ? 'Tudo feito. Feche o dia.' : 'Terminou o que deu?'}</b><p class="muted small">${isDone(d) ? 'Você pode refazer qualquer passo quando quiser.' : 'Fechar o dia leva você para o próximo, mesmo que falte um passo.'}</p></div>
       <button class="btn ${isDone(d) ? '' : 'primary'}" id="finish">${isDone(d) ? 'Desmarcar dia' : 'Concluir o dia ' + d}</button>
@@ -378,10 +546,12 @@ function renderHoje() {
       <p class="small" id="code-msg" aria-live="polite"></p>
     </div></details>`;
   bindHoje(el, d, steps);
+  bindRecorder(el.querySelector('.steps'));
   bindCode(el);
   if (window.bindAccount) window.bindAccount(el);
 }
-function stepHTML(s, k, on) {
+const wantsRecorder = s => !s.text && /grav/i.test((s.title || '') + ' ' + (s.desc || ''));
+function stepHTML(s, k, on, d) {
   return `<div class="step ${on ? 'is-done' : ''}">
     <button class="check" data-check="${s.id}" aria-pressed="${on}" aria-label="Marcar ${esc(s.kind)} como feito">${ICON_CHECK}</button>
     <div class="step-body">
@@ -394,6 +564,7 @@ function stepHTML(s, k, on) {
         ${s.text ? `<button class="btn primary" id="open-text" aria-expanded="${readerOpen}">${readerOpen ? 'Fechar texto' : 'Abrir o texto'}</button>` : ''}
         ${(s.links || []).map((l, j) => linkBtn(l, j === 0 && !s.text ? 'primary' : '')).join('')}
       </div>
+      ${wantsRecorder(s) ? recorderHTML(d) : ''}
     </div></div>${s.text && readerOpen ? '<article class="reader" id="today-reader"></article>' : ''}`;
 }
 function bindHoje(el, d, steps) {
@@ -558,8 +729,10 @@ function renderTextos() {
   }
   const list = DAYS.filter(t => Math.ceil(t.d / 30) === libMonth);
   el.innerHTML = `<div class="trail-top"><div class="eyebrow">Biblioteca · fase 1</div><h2>Os 90 textos</h2><p class="muted">Para revisar quando quiser. A sessão de hoje abre o texto certo sozinha.</p></div>
+    <details class="how" id="rec-library"><summary>Suas gravações (<span data-rec-count>0</span>) · compare a primeira com a mais recente</summary><div class="inner"><ul class="rec-list" data-rec-list></ul></div></details>
     <div class="filters" role="group" aria-label="Mês">${[1, 2, 3].map(m => `<button data-m="${m}" aria-pressed="${m === libMonth}">Mês ${m}</button>`).join('')}</div>
     <div class="lib">${list.map(t => `<button class="card ${t.review ? 'rev' : ''}" data-t="${t.d}"><span class="n"><span>DIA ${t.d}${t.review ? ' · REVISÃO' : ''}</span>${isDone(t.d) ? '<span class="ok">✓</span>' : ''}</span><b>${esc(t.title)}</b><span class="p">${esc(t.pt)}</span></button>`).join('')}</div>`;
+  renderRecPanels();
   el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { libMonth = +b.dataset.m; renderTextos(); });
   el.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { libOpen = +b.dataset.t; renderTextos(); window.scrollTo({ top: 0 }); });
 }
@@ -572,7 +745,8 @@ function renderAtalhos() {
     <div class="res-groups">${RES_GROUPS.map(([g, name]) => `<div class="res-group"><div class="label">${name}</div>${Object.values(RES).filter(r => r.g === g).map(r => `
       <div class="res ${r.at > today ? 'locked' : ''}"><a class="name" href="${esc(r.u)}" target="_blank" rel="noopener">${esc(r.n)} ↗</a><span class="when">${r.at > today ? 'entra no dia ' + r.at : 'em uso'}</span><p>${esc(r.p)}</p></div>`).join('')}</div>`).join('')}
       <div class="res-group"><div class="label">Sem instalar nada</div>
-        <div class="res"><b>Gravador do celular</b><span class="when">todo dia</span><p>Seu melhor professor de fala. Grave, ouça e compare com o áudio do texto.</p></div>
+        <div class="res"><b>Gravador do app</b><span class="when">todo dia</span><p>Seu melhor professor de fala. Grave no próprio texto ou passo, ouça e compare. Todas ficam em Textos → Suas gravações.</p></div>
+        <div class="res"><b>Shadowing guiado</b><span class="when">fase 1</span><p>O app lê frase por frase, devagar, e espera você repetir. Toque em qualquer frase para ouvir só ela.</p></div>
         <div class="res"><b>Botão Ouvir dos textos</b><span class="when">fase 1</span><p>Usa a voz em inglês do seu aparelho. Funciona no celular e no computador.</p></div>
       </div></div>`;
 }

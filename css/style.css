@@ -234,3 +234,24 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 2px; border-r
 @media (prefers-reduced-motion: no-preference) {
   .step, .check, .btn, .node, .card { transition: background-color .18s, border-color .18s, box-shadow .18s, color .18s; }
 }
+
+/* frases tocáveis e shadowing guiado */
+.sent { cursor: pointer; border-radius: 4px; transition: background .2s; }
+.sent:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sent:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sent.on { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.shadow-status { margin: -8px 0 0; font-size: 14px; color: var(--ink-2); }
+
+/* gravador */
+.rec { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.rec-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rec-btn .dot { width: 10px; height: 10px; border-radius: 50%; background: #D9483B; display: inline-block; }
+.rec-btn .dot.on { animation: recpulse 1s infinite; }
+@keyframes recpulse { 50% { opacity: .25; } }
+.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rec-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.rec-list li.muted { display: block; border: 0; padding: 0; }
+.rec-meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rec-list audio { grid-column: 1 / -1; width: 100%; height: 36px; }
+.rec-list .small-btn { grid-row: 1; grid-column: 2; padding: 4px 10px; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .rec-btn .dot.on { animation: none; } .sent { transition: none; } }
