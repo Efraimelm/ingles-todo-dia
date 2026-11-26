@@ -60,7 +60,7 @@ const THEMES = [
 ];
 
 const RES = {
-  ej:      { n: 'English Journey', u: APP_URL, g: 'app', at: 1, p: 'O seu app. Use como teste rápido de revisão num intervalo do dia.' },
+  ej:      { n: 'English Journey', u: APP_URL, g: 'app', at: 1, p: 'O seu app de frases: 20 frases por semana com revisão espaçada. Aqui você ouve e fala; lá você fixa as frases.' },
   ytbeg:   { n: 'YouTube para iniciantes', u: 'https://www.youtube.com/results?search_query=English+listening+practice+for+beginners+with+subtitles', g: 'ouvir', at: 1, p: 'Vídeos curtos de escuta para iniciantes, com legenda. O passo do dia já abre a busca no tema do texto.' },
   cambridge: { n: 'Cambridge Dictionary', u: 'https://dictionary.cambridge.org/pt/dicionario/ingles-portugues/', g: 'vocab', at: 1, p: 'Dicionário inglês–português com áudio americano e britânico.' },
   languagetool: { n: 'LanguageTool', u: 'https://languagetool.org', g: 'falar', at: 2, p: 'Corrige o que você escreve e explica o erro.' },
@@ -101,6 +101,15 @@ function weekLabel(i) { return i.tail ? 'Dias ' + (i.d - i.dw + 1) + '–' + (i.
 
 /* ---------- a sessão de cada dia ---------- */
 const L = (k, label) => ({ label: label || RES[k].n, url: RES[k].u });
+/* Passo do English Journey: mostra onde você está lá (window.ejInfo vem de sync.js, com a mesma conta). */
+function ejStep(short) {
+  const ej = window.ejInfo;
+  const due = ej && ej.due ? ' Você tem ' + ej.due + (ej.due === 1 ? ' revisão pendente lá.' : ' revisões pendentes lá.') : '';
+  return { id: 'pausa', min: short ? 10 : 20, kind: 'Frases', title: ej ? 'English Journey: ' + ej.label : 'Sessão do dia no English Journey',
+    desc: short ? 'Dia corrido: faça só as revisões pendentes, num intervalo (almoço, fila, ônibus).' + due
+                : 'As frases da semana e a revisão espaçada.' + due,
+    links: [short ? { label: 'Revisar no English Journey', url: APP_URL + '/#/revisao' } : L('ej', 'Abrir o English Journey')] };
+}
 function session(d, short) {
   const i = info(d);
   if (i.phase.n === 1) {
@@ -113,7 +122,7 @@ function session(d, short) {
     const steps = [
       { id: 'texto', min: short ? 15 : 20, kind: 'Texto do dia', title: t.title, sub: t.pt, text: true,
         flow: short ? ['Ouça 1× sem ler', 'Shadowing devagar 2×', 'Reconte gravando'] : ['Ouça 2× sem ler', 'Leia com a tradução', 'Ouça lendo junto', 'Shadowing devagar 3×', 'Reconte gravando'] },
-      { id: 'pausa', min: 10, kind: 'Pausa', title: 'Teste rápido no English Journey', desc: 'Faça a revisão do dia num intervalo: almoço, fila, ônibus.', links: [L('ej', 'Abrir o English Journey')] },
+      ejStep(short),
     ];
     if (!short) {
       steps.push({ id: 'escuta', min: 15, kind: 'Escuta', title: listen.title || RES[listen.k].n, desc: listen.desc, links: [listen.url ? { label: listen.label, url: listen.url } : L(listen.k)] });
@@ -167,7 +176,7 @@ function session(d, short) {
     m = T[i.phase.n][i.dw - 1];
   }
   const steps = [{ id: 'missao', min: short ? 15 : 30, ...m }];
-  steps.push({ id: 'pausa', min: 10, kind: 'Pausa', title: 'Teste rápido no English Journey', desc: 'Faça a revisão do dia num intervalo.', links: [L('ej', 'Abrir o English Journey')] });
+  steps.push(ejStep(short));
   if (!short) {
     steps.push({ id: 'shadow', min: 10, kind: 'Shadowing', title: 'Repita 1 minuto do que ouviu hoje', desc: 'Frase por frase, imitando o ritmo e a entonação. Se não ouviu nada hoje, use o último texto da fase 1.', links: [L('youglish')] });
     steps.push({ id: 'caderno', min: 10, kind: 'Caderno', title: 'Anote 5 expressões do dia', desc: 'Com uma frase de exemplo cada. Leia em voz alta antes de dormir.', links: [L('anki')] });
@@ -355,7 +364,7 @@ function renderHoje() {
       <ul>
         <li><b>Fase 1 (dias 1–90):</b> um texto curto por dia com o inglês mais falado. Você ouve, repete junto (shadowing) e reconta gravando.</li>
         <li><b>Fases 2 a 4 (dias 91–360):</b> uma missão por dia com conteúdo real: podcast, série, notícia, conversa e escrita, sempre sobre o tema da semana.</li>
-        <li><b>O English Journey</b> entra como pausa: um teste rápido de revisão num intervalo do dia.</li>
+        <li><b>O English Journey</b> é o passo das frases: a sessão do dia de lá (ou só as revisões, no dia corrido). Com a mesma conta, este app mostra em que semana você está lá.</li>
         <li><b>Todo 7º dia é revisão</b> e todo dia 30 do mês é teste. Guarde as gravações para ouvir a sua evolução.</li>
         <li><b>Dia corrido?</b> Use a versão curta. Pular um dia não estraga nada; pular uma semana estraga.</li>
       </ul></div></details>

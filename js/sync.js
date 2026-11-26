@@ -59,6 +59,23 @@ async function pull() {
     await push();
   }
   try { localStorage.setItem(MERGED, userId); } catch (e) {}
+  readJourney();
+}
+
+/* ---------- English Journey (mesma conta): só leitura, para mostrar onde você está lá ---------- */
+const EJ_DAYS = ['Frases 1–5', 'Frases 6–10', 'Frases 11–15', 'Frases 16–20', 'Revisão das 20 frases', 'Texto semanal', 'Teste semanal'];
+async function readJourney() {
+  if (!sb || !userId) return;
+  const { data, error } = await sb.from('english_journey').select('data').eq('user_id', userId).maybeSingle();
+  const ej = !error && data && data.data;
+  if (!ej) return;
+  const days = ej.days || {};
+  let w = 1, d = 1;
+  while (w <= 48 && days['w' + w + 'd' + d]) { d++; if (d > 7) { d = 1; w++; } }
+  const t = new Date(), today = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  const due = Object.values(ej.phrases || {}).filter(p => p && p.due && p.due <= today).length;
+  window.ejInfo = { week: w, day: d, due, label: w > 48 ? 'jornada concluída' : 'semana ' + w + ' · ' + EJ_DAYS[d - 1] };
+  renderAll();
 }
 
 window.onLocalChange = () => {

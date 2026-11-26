@@ -7,7 +7,8 @@ Trilha de inglês de 360 dias para estudar por conta própria e de graça. Abra 
 - **Fase 1 (dias 1–90):** um texto curto por dia com o inglês mais usado, com áudio, tradução e expressões marcadas.
 - **Fases 2 a 4 (dias 91–360):** uma missão por dia com conteúdo real (podcast, série, notícia, conversa, escrita) sobre o tema da semana.
 - **Trilha:** o caminho dos 12 meses, com os atalhos gratuitos aparecendo no ponto em que você começa a usar cada um.
-- Funciona sem internet depois da primeira abertura. O [English Journey](https://github.com/Efraimelm/english-journey) entra como a pausa de revisão do dia.
+- Funciona sem internet depois da primeira abertura.
+- **Ligado ao [English Journey](https://english-journey.expo.app/):** aqui você ouve e fala; lá você fixa as frases da semana com revisão espaçada. Com a mesma conta, o passo "Frases" da sessão mostra em que semana você está lá, e o English Journey mostra em que dia você está aqui.
 
 ## Instalar
 
@@ -42,4 +43,4 @@ Sem conta, ainda dá para levar o progresso por código: **Hoje → Sem conta: l
 
 ## Atualizar
 
-Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque `itd-v3` em `sw.js` para `itd-v4` (e assim por diante) para os aparelhos baixarem a versão nova.
+Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque a versão do cache em `sw.js` (hoje `itd-v5`, depois `itd-v6`) para os aparelhos baixarem a versão nova.
