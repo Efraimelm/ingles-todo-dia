@@ -24,7 +24,7 @@ Sem internet no computador: dê dois cliques em `rodar-no-computador.cmd` (preci
 
 Entre com a **mesma conta do English Journey** em **Hoje → Sincronizar celular e computador** (ou toque no aviso de salvamento no topo). Faça isso nos dois aparelhos e o progresso passa a ser o mesmo. Sem internet, o app segue salvando no aparelho e sincroniza quando a conexão volta.
 
-A sincronização usa o mesmo projeto Supabase do English Journey, com a tabela `ingles_todo_dia`. Para criá-la, rode uma vez `supabase/schema.sql` no SQL Editor do projeto.
+A sincronização junta o progresso dos dois aparelhos (um dia desmarcado não volta) e usa o mesmo projeto Supabase do English Journey, com a tabela `ingles_todo_dia`. Para criá-la, rode uma vez `supabase/schema.sql` no SQL Editor do projeto.
 
 Sem conta, ainda dá para levar o progresso por código: **Hoje → Sem conta: levar o progresso por código**.
 
@@ -43,4 +43,4 @@ Sem conta, ainda dá para levar o progresso por código: **Hoje → Sem conta: l
 
 ## Atualizar
 
-Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque a versão do cache em `sw.js` (hoje `itd-v5`, depois `itd-v6`) para os aparelhos baixarem a versão nova.
+Edite os arquivos e envie para o GitHub (`git push`). O GitHub Pages publica sozinho em cerca de 1 minuto. Se mudar algum arquivo, troque a versão do cache em `sw.js` (hoje `itd-v6`, depois `itd-v7`) para os aparelhos baixarem a versão nova.

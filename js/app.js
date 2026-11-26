@@ -186,10 +186,10 @@ function session(d, short) {
 
 /* ---------- estado e salvamento ---------- */
 const LS = 'itd-state-v2';
-let state = { done: [], steps: {}, short: false, updatedAt: 0 };
+let state = { done: [], steps: {}, short: false, updatedAt: 0, doneAt: {}, undone: {} };
 try {
   const s = JSON.parse(localStorage.getItem(LS) || 'null');
-  if (s && Array.isArray(s.done)) state = { done: s.done, steps: s.steps || {}, short: !!s.short, updatedAt: s.updatedAt || 0 };
+  if (s && Array.isArray(s.done)) state = { done: s.done, steps: s.steps || {}, short: !!s.short, updatedAt: s.updatedAt || 0, doneAt: s.doneAt || {}, undone: s.undone || {} };
   const old = JSON.parse(localStorage.getItem('itd-done-v1') || '[]');
   if (Array.isArray(old)) state.done = [...new Set([...state.done, ...old])];
 } catch (e) {}
@@ -231,6 +231,8 @@ function importCode(code) {
   if (!m) return null;
   const days = fromRanges(m[1]).filter(d => d >= 1);
   state.done = [...new Set([...state.done, ...days])];
+  const now = Date.now();
+  state.doneAt = { ...state.doneAt, ...Object.fromEntries(days.map(d => [d, now])) };
   persist();
   return days.length;
 }
@@ -409,8 +411,14 @@ function bindHoje(el, d, steps) {
   const tr = el.querySelector('#today-reader');
   if (tr) mountReader(tr, info(d).text);
   el.querySelector('#finish').onclick = () => {
-    if (isDone(d)) { state.done = state.done.filter(x => x !== d); persist(); renderAll(); return; }
+    const now = Date.now();
+    if (isDone(d)) {
+      state.done = state.done.filter(x => x !== d);
+      state.undone = { ...state.undone, [d]: now }; // lembra que foi desmarcado, para o outro aparelho não trazer de volta
+      persist(); renderAll(); return;
+    }
     state.done = [...state.done, d];
+    state.doneAt = { ...state.doneAt, [d]: now };
     persist(); synth && synth.cancel();
     justFinished = d; viewing = null; readerOpen = false;
     renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' });

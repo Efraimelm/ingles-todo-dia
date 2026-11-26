@@ -1,5 +1,5 @@
 // Funciona sem internet: guarda o app no aparelho e busca a versão nova quando houver conexão.
-const CACHE = 'itd-v5';
+const CACHE = 'itd-v6';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/textos.js', 'js/app.js', 'js/sync.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 

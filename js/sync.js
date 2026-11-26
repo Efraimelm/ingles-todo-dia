@@ -36,28 +36,34 @@ async function push() {
   if (pushAgain) { pushAgain = false; push(); }
 }
 
-/** O progresso mais recente vence. Na primeira vez deste aparelho na conta, junta os dois. */
+/** Junta o progresso do aparelho com o da nuvem: dia feito em qualquer um dos dois conta,
+ *  a não ser que tenha sido desmarcado depois. Assim celular e computador nunca se apagam. */
+function mergeItd(a, b) {
+  const doneAt = { ...(b.doneAt || {}) }, undone = { ...(b.undone || {}) };
+  for (const [d, t] of Object.entries(a.doneAt || {})) doneAt[d] = Math.max(doneAt[d] || 0, t);
+  for (const [d, t] of Object.entries(a.undone || {})) undone[d] = Math.max(undone[d] || 0, t);
+  const done = [...new Set([...(a.done || []), ...(b.done || [])])].filter(d => !((undone[d] || 0) > (doneAt[d] || 0)));
+  const steps = { ...(b.steps || {}) };
+  for (const [d, c] of Object.entries(a.steps || {})) {
+    const m = { ...(steps[d] || {}) };
+    for (const [k, v] of Object.entries(c)) m[k] = m[k] || v;
+    steps[d] = m;
+  }
+  const newer = (a.updatedAt || 0) >= (b.updatedAt || 0) ? a : b;
+  return { done, steps, short: !!newer.short, doneAt, undone, updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
+}
+
 async function pull() {
   if (!sb || !userId) return;
   setStatus('syncing');
   const { data, error } = await sb.from(SB_TABLE).select('data').eq('user_id', userId).maybeSingle();
   if (error) return setStatus(failStatus(error));
   const remote = data && data.data;
-  let first = true;
-  try { first = localStorage.getItem(MERGED) !== userId; } catch (e) {}
-  if (remote && first) {
-    state = {
-      done: [...new Set([...(remote.done || []), ...state.done])],
-      steps: { ...(remote.steps || {}), ...state.steps },
-      short: !!state.short, updatedAt: Date.now(),
-    };
-    saveLocal(); renderAll(); await push();
-  } else if (remote && (remote.updatedAt || 0) > (state.updatedAt || 0)) {
-    state = { done: remote.done || [], steps: remote.steps || {}, short: !!remote.short, updatedAt: remote.updatedAt };
-    saveLocal(); renderAll(); setStatus('synced');
-  } else {
-    await push();
-  }
+  if (!remote) { await push(); return; }
+  const merged = mergeItd(state, remote);
+  const same = (x, y) => JSON.stringify([[...x.done].sort((p, q) => p - q), x.steps, !!x.short]) === JSON.stringify([[...(y.done || [])].sort((p, q) => p - q), y.steps || {}, !!y.short]);
+  if (!same(merged, state)) { state = merged; saveLocal(); renderAll(); }
+  if (!same(merged, remote)) { state = merged; await push(); } else setStatus('synced');
   try { localStorage.setItem(MERGED, userId); } catch (e) {}
   readJourney();
 }
